@@ -7,7 +7,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -30,8 +30,15 @@ jobs:
         run: |
           docker push ghcr.io/${REPO_NAME}:${{ github.sha }}
 
-      # mock deploy endpoint — заменим позже
+      # Пример деплоя через внешнее API (mock/шаблон)
       - name: Deploy to Cloud
         run: |
-          echo "Deploying image"
-          echo "ghcr.io/${REPO_NAME}:${{ github.sha }}"
+          curl -X POST https://api.cloudprovider/deploy \
+            -H "Authorization: Bearer ${{ secrets.CLOUD_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"image\": \"ghcr.io/${REPO_NAME}:${{ github.sha }}\", \"model_version\": \"${{ secrets.MODEL_VERSION }}\"}"
+
+      # Проверка /health после деплоя
+      - name: Health check
+        run: |
+          curl -f https://your-app/health
