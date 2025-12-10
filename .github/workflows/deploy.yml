@@ -1,4 +1,4 @@
-name: Deploy Model to Cloud
+name: Model Deployment
 
 on:
   push:
@@ -7,38 +7,22 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      # Приводим repo к нижнему регистру (GHCR требует lowercase)
-      - name: Prepare repository name
-        id: prep
+      - name: Build and push Docker image
         run: |
-          echo "REPO_NAME=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+          docker build -t ghcr.io/${{ github.repository }}:${{ github.sha }} .
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          docker push ghcr.io/${{ github.repository }}:${{ github.sha }}
 
-      - name: Log in to GHCR
-        run: |
-          echo "${{ secrets.PERSONAL_GHCR_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-
-      - name: Build Docker image
-        run: |
-          docker build -t ghcr.io/${REPO_NAME}:${{ github.sha }} .
-
-      - name: Push image to GHCR
-        run: |
-          docker push ghcr.io/${REPO_NAME}:${{ github.sha }}
-
-      # Пример деплоя через внешнее API (mock/шаблон)
-      - name: Deploy to Cloud
+      - name: Deploy via API
         run: |
           curl -X POST https://api.cloudprovider/deploy \
             -H "Authorization: Bearer ${{ secrets.CLOUD_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            -d "{\"image\": \"ghcr.io/${REPO_NAME}:${{ github.sha }}\", \"model_version\": \"${{ secrets.MODEL_VERSION }}\"}"
+            -d "image=ghcr.io/${{ github.repository }}:${{ github.sha }}" \
+            -d "model_version=${{ secrets.MODEL_VERSION }}"
 
-      # Проверка /health после деплоя
       - name: Health check
         run: |
           curl -f https://your-app/health
