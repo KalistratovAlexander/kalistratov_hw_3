@@ -15,4 +15,4 @@ def load_model() -> Any:
             return sum(xs)
 
         model = model_stub
-    return model
+    return sum(xs)
